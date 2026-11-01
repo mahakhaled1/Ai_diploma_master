@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: haqi_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: haqi_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - haqi_pgdata:/var/lib/postgresql/data
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d haqi_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  haqi_backend:
+    build: .
+    container_name: haqi_backend_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/haqi_db
+      DEBUG: "False"
+      PORT: "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  haqi_pgdata:
